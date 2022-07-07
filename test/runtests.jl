@@ -41,9 +41,9 @@ using Random
             for dtype in [Float64, Float32]
                 n = 5
                 v = rand(dtype, n * (n + 1) ÷ 2)
-                M = lower_triang_to_vector(v)
+                M = vector_to_lower_triang(v)
                 M_target = zeros(dtype, n, n)
-                lower_triang_to_vector!(M_target, v)
+                vector_to_lower_triang!(M_target, v)
                 @test M == M_target
                 v_test = lower_triang_to_vector(M)
                 @test v == v_test
@@ -51,14 +51,16 @@ using Random
         end
 
         @testset "Test lower_triang_to_vector, Rank1" begin
-            for n in [1, 5]
-                for dtype in [Float64, Float32]
+            for n in [5]
+                for dtype in [Float64]
                     vl = n * (n + 1) ÷ 2
                     v = Vector{dtype}(undef, vl)
                     v1 = rand(MersenneTwister(0), dtype, n)
                     v2 = rand(MersenneTwister(1), dtype, n)
                     lower_triang_to_vector!(v, v1, v2)
                     V = v1 * v2'
+                    v_test = lower_triang_to_vector(V)
+                    @test v ≈ v_test
                 end
             end
         end

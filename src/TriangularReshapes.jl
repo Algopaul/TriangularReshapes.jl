@@ -76,13 +76,10 @@ Returns a vector containing the values of the lower triangular part of M.
 """
 function lower_triang_to_vector(M::AbstractMatrix{T}) where {T}
     n = size(M, 1)
-    v = Vector{T}(undef, n * (n + 1) / 2)
+    v = Vector{T}(undef, n * (n + 1) ÷ 2)
     lower_triang_to_vector!(v, M)
     return v
 end
-
-end
-
 
 """
     lower_triang_to_vector!(v, v1, v2)
@@ -94,26 +91,25 @@ Overwrites the first n * (n + 1) / 2 elements of v with the values of the lower 
 """
 function lower_triang_to_vector!(
     v::AbstractVector{T},
-    v1::AbstractVector{T1},
-    v2::AbstractVector{T2};
-) where {T<:Real,T1,T2}
+    v1::AbstractVector{T},
+    v2::AbstractVector{T};
+) where {T}
     n = length(v1)
     @assert length(v2) == n
     @assert length(v) >= n * (n + 1) / 2
-    lv = Int((n * (n + 1)) / 2)
     l = n
     st = 1
-    @inbounds @simd for i = 1:n
+    @inbounds for i = 1:n
         v2i = v2[i]
         @turbo for j = i:n
-            v[j - 1 + st] = real(v1[j] * v2i)
+            v[j - 1 + st] = v1[j] * v2i
         end
-        st += l
+        st += l-1
         l -= 1
     end
     return nothing
 end
 
-export vector_to_lower_triang!, lower_triang_to_vector!
+export vector_to_lower_triang!, lower_triang_to_vector!, lower_triang_to_vector, vector_to_lower_triang
 
 end # module TriangularReshapes
