@@ -27,6 +27,30 @@ function vector_to_lower_triang!(M::AbstractMatrix{T}, v::AbstractVector{T}) whe
 end
 
 """
+    vector_to_strictly_lower_triang!(M::AbstractMatrix{T}, v::AbstractVector{T}) where {T}
+
+Overwrites the strictly lower triangular part of M with the values of v.
+# Arguments
+- M: The matrix to be overwritten.
+- v: The vector to be used to overwrite the strictly lower triangular part of M.
+"""
+function vector_to_strictly_lower_triang!(M::AbstractMatrix{T}, v::AbstractVector{T}) where {T}
+    n = size(M, 1)
+    @assert size(M, 2) == n
+    @assert length(v) >= n * (n - 1) / 2
+    st = 1
+    l = n-1
+    @inbounds @simd for i = 2:n
+        @turbo warn_check_args = false for j = 0:(n - i)
+            M[j + i, i - 1] = v[st + j]
+        end
+        st += l
+        l -= 1
+    end
+    return nothing
+end
+
+"""
     vector_to_lower_triang(v::AbstractVector)
 
 Creates a matrix `M`, whose lower triangular part is filled with the values of v.
@@ -40,6 +64,23 @@ function vector_to_lower_triang(v::AbstractVector{T}) where {T}
     nM = Int(-0.5 + sqrt(0.25 + 2 * n))
     M = zeros(T, nM, nM)
     vector_to_lower_triang!(M, v)
+    return M
+end
+
+"""
+    vector_to_strictly_lower_triang(v::AbstractVector)
+
+Creates a matrix `M`, whose strictly lower triangular part is filled with the values of v.
+# Arguments
+- v: The vector to be used to overwrite the strictly lower triangular part of M.
+# Outputs
+- M: The matrix whose strictly lower triangular part is filled with the values of v.
+"""
+function vector_to_strictly_lower_triang(v::AbstractVector{T}) where {T}
+    n = length(v)
+    nM = Int(0.5 + sqrt(0.25 + 2 * n))
+    M = zeros(T, nM, nM)
+    vector_to_strictly_lower_triang!(M, v)
     return M
 end
 
@@ -68,6 +109,30 @@ function lower_triang_to_vector!(v::AbstractVector{T}, M::AbstractMatrix{T}) whe
 end
 
 """
+    strictly_lower_triang_to_vector!(v::AbstractVector{T}, M::AbstractMatrix{T}) where {T}
+
+Overwrites the first n * (n - 1) / 2 elements of v with the values of the strictly lower triangular part of M.
+# Arguments
+- v: The vector to be overwritten.
+- M: The matrix whose strictly lower triangular part is used to overwrite the first n * (n - 1) / 2 elements of v.
+"""
+function strictly_lower_triang_to_vector!(v::AbstractVector{T}, M::AbstractMatrix{T}) where {T}
+    n = size(M, 1)
+    @assert size(M, 2) == n
+    @assert length(v) >= n * (n - 1) / 2
+    st = 1
+    l = n-1
+    @inbounds @simd for i = 1:(n-1)
+        @turbo warn_check_args = false for j = 0:(n - i - 1)
+            v[st + j] = M[j + i + 1, i]
+        end
+        st += l
+        l -= 1
+    end
+    return nothing
+end
+
+"""
     lower_triang_to_vector(M::AbstractMatrix{T}) where {T}
 
 Returns a vector containing the values of the lower triangular part of M.
@@ -78,6 +143,22 @@ function lower_triang_to_vector(M::AbstractMatrix{T}) where {T}
     n = size(M, 1)
     v = Vector{T}(undef, n * (n + 1) ÷ 2)
     lower_triang_to_vector!(v, M)
+    return v
+end
+
+"""
+    strictly_lower_triang_to_vector(M::AbstractMatrix{T}) where {T}
+
+Returns a vector containing the values of the strictly lower triangular part of M.
+# Arguments
+- M: The matrix whose strictly lower triangular part is used to create the vector.
+# Outputs
+- v: The vector containing the values of the strictly lower triangular part of M.
+"""
+function strictly_lower_triang_to_vector(M::AbstractMatrix{T}) where {T}
+    n = size(M, 1)
+    v = Vector{T}(undef, n * (n - 1) ÷ 2)
+    strictly_lower_triang_to_vector!(v, M)
     return v
 end
 
@@ -228,6 +309,6 @@ function lower_triang_to_vector!(
 end
 
 export vector_to_lower_triang!,
-    lower_triang_to_vector!, lower_triang_to_vector, vector_to_lower_triang
+    lower_triang_to_vector!, lower_triang_to_vector, vector_to_lower_triang, vector_to_strictly_lower_triang!, strictly_lower_triang_to_vector!, strictly_lower_triang_to_vector, vector_to_strictly_lower_triang
 
 end # module TriangularReshapes
