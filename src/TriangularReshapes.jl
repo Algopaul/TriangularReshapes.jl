@@ -37,7 +37,7 @@ Creates a matrix `M`, whose lower triangular part is filled with the values of v
 """
 function vector_to_lower_triang(v::AbstractVector{T}) where {T}
     n = length(v)
-    nM = Int(-0.5+sqrt(0.25+2*n))
+    nM = Int(-0.5 + sqrt(0.25 + 2 * n))
     M = zeros(T, nM, nM)
     vector_to_lower_triang!(M, v)
     return M
@@ -81,39 +81,6 @@ function lower_triang_to_vector(M::AbstractMatrix{T}) where {T}
     return v
 end
 
-"""
-    lower_triang_to_vector!(v, v1, v2)
-
-Overwrites the first n * (n + 1) / 2 elements of v with the values of the lower triangular part of `v1 * transpose(v2)`.
-# Arguments
-- v: The vector to be overwritten min-length: `n * (n + 1) / 2`.
-- v1, v2: Vectors of length `n`
-"""
-function lower_triang_to_vector_old!(
-    v::AbstractVector{T},
-    v1::AbstractVector{T},
-    v2::AbstractVector{T};
-) where {T}
-    n = length(v1)
-    @assert length(v2) == n
-    @assert length(v) >= n * (n + 1) / 2
-    l = n
-    st = 1
-    @inbounds for i = 1:n
-        v2i = v2[i]
-        @turbo for j = i:n
-            v[j - 1 + st] = v1[j] * v2i
-        end
-        st += l-1
-        l -= 1
-    end
-    return nothing
-end
-
-function setindex_sum!(v, x, i)
-    v[i] += x
-end
-
 for c1 in (true, false)
     for c2 in (true, false)
         for makereal in (true, false)
@@ -125,17 +92,20 @@ for c1 in (true, false)
             realfun = makereal ? real : identity
             ltv_name = Symbol("ltv" * c1name * c2name * realname * "!")
             ltv_name_sum = Symbol("ltv" * c1name * c2name * realname * "_sum!")
+            vtype = makereal ? Real : Number
             @eval begin
-                function $ltv_name(v, v1, v2)
+                function $ltv_name(
+                    v::AbstractVector{T1},
+                    v1::AbstractVector,
+                    v2::AbstractVector,
+                ) where {T1<:$vtype}
                     n = length(v1)
-                    @assert length(v2) == n
-                    @assert length(v) >= n * (n + 1) / 2
                     l = n
                     st = 1
                     @inbounds for i = 1:n
                         v2i = v2[i]
                         v2i = $c2fun(v2i)
-                        @turbo warn_check_args = false for j = i:n
+                        @simd for j = i:n
                             v1j = $c1fun(v1[j])
                             v1jv2i = $realfun(v1j * v2i)
                             v[j - 1 + st] = v1jv2i
@@ -145,16 +115,18 @@ for c1 in (true, false)
                     end
                     return nothing
                 end
-                function $ltv_name_sum(v, v1, v2)
+                function $ltv_name_sum(
+                    v::AbstractVector{T1},
+                    v1::AbstractVector,
+                    v2::AbstractVector,
+                ) where {T1<:$vtype}
                     n = length(v1)
-                    @assert length(v2) == n
-                    @assert length(v) >= n * (n + 1) / 2
                     l = n
                     st = 1
                     @inbounds for i = 1:n
                         v2i = v2[i]
                         v2i = $c2fun(v2i)
-                        @turbo warn_check_args = false for j = i:n
+                        @simd for j = i:n
                             v1j = $c1fun(v1[j])
                             v1jv2i = $realfun(v1j * v2i)
                             v[j - 1 + st] += v1jv2i
@@ -176,7 +148,10 @@ function lower_triang_to_vector!(
     c1 = false::Bool,
     c2 = false::Bool,
     adding = false::Bool,
-) where {T}
+)
+    n = length(v1)
+    @assert length(v2) == n
+    @assert length(v) >= n * (n + 1) ÷ 2
     if c1
         if c2
             if adding
@@ -217,6 +192,9 @@ function lower_triang_to_vector!(
     c2 = false::Bool,
     adding = false::Bool,
 ) where {T<:Real}
+    n = length(v1)
+    @assert length(v2) == n
+    @assert length(v) >= n * (n + 1) ÷ 2
     if c1
         if c2
             if adding
@@ -249,6 +227,7 @@ function lower_triang_to_vector!(
     return nothing
 end
 
-export vector_to_lower_triang!, lower_triang_to_vector!, lower_triang_to_vector, vector_to_lower_triang
+export vector_to_lower_triang!,
+    lower_triang_to_vector!, lower_triang_to_vector, vector_to_lower_triang
 
 end # module TriangularReshapes
