@@ -222,6 +222,66 @@ for c1 in (true, false)
     end
 end
 
+for c1 in (true, false)
+    for c2 in (true, false)
+        for makereal in (true, false)
+            c1name = c1 ? "_c1" : ""
+            c1fun = c1 ? conj : identity
+            c2name = c2 ? "_c2" : ""
+            c2fun = c2 ? conj : identity
+            realname = makereal ? "_real" : ""
+            realfun = makereal ? real : identity
+            sltv_name = Symbol("sltv" * c1name * c2name * realname * "!")
+            sltv_name_sum = Symbol("sltv" * c1name * c2name * realname * "_sum!")
+            vtype = makereal ? Real : Number
+            @eval begin
+                function $sltv_name(
+                    v::AbstractVector{T1},
+                    v1::AbstractVector,
+                    v2::AbstractVector,
+                ) where {T1<:$vtype}
+                    n = length(v1)
+                    l = n - 1
+                    st = 1
+                    @inbounds for i = 1:n
+                        v2i = v2[i]
+                        v2i = $c2fun(v2i)
+                        @simd for j = (i+1):n
+                            v1j = $c1fun(v1[j])
+                            v1jv2i = $realfun(v1j * v2i)
+                            v[j - 2 + st] = v1jv2i
+                        end
+                        st += l - 1
+                        l -= 1
+                    end
+                    return nothing
+                end
+                function $sltv_name_sum(
+                    v::AbstractVector{T1},
+                    v1::AbstractVector,
+                    v2::AbstractVector,
+                ) where {T1<:$vtype}
+                    n = length(v1)
+                    l = n - 1
+                    st = 1
+                    @inbounds for i = 1:n
+                        v2i = v2[i]
+                        v2i = $c2fun(v2i)
+                        @simd for j = (i+1):n
+                            v1j = $c1fun(v1[j])
+                            v1jv2i = $realfun(v1j * v2i)
+                            v[j - 2 + st] += v1jv2i
+                        end
+                        st += l - 1
+                        l -= 1
+                    end
+                    return nothing
+                end
+            end
+        end
+    end
+end
+
 function lower_triang_to_vector!(
     v::AbstractVector,
     v1::AbstractVector,
@@ -302,6 +362,92 @@ function lower_triang_to_vector!(
                 ltv_real_sum!(v, v1, v2)
             else
                 ltv_real!(v, v1, v2)
+            end
+        end
+    end
+    return nothing
+end
+
+function strictly_lower_triang_to_vector!(
+    v::AbstractVector,
+    v1::AbstractVector,
+    v2::AbstractVector;
+    c1 = false::Bool,
+    c2 = false::Bool,
+    adding = false::Bool,
+)
+    n = length(v1)
+    @assert length(v2) == n
+    @assert length(v) >= n * (n - 1) ÷ 2
+    if c1
+        if c2
+            if adding
+                sltv_c1_c2_sum!(v, v1, v2)
+            else
+                sltv_c1_c2!(v, v1, v2)
+            end
+        else
+            if adding
+                sltv_c1_sum!(v, v1, v2)
+            else
+                sltv_c1!(v, v1, v2)
+            end
+        end
+    else
+        if c2
+            if adding
+                sltv_c2_sum!(v, v1, v2)
+            else
+                sltv_c2!(v, v1, v2)
+            end
+        else
+            if adding
+                sltv_sum!(v, v1, v2)
+            else
+                sltv!(v, v1, v2)
+            end
+        end
+    end
+    return nothing
+end
+
+function strictly_lower_triang_to_vector!(
+    v::AbstractVector{T},
+    v1::AbstractVector,
+    v2::AbstractVector;
+    c1 = false::Bool,
+    c2 = false::Bool,
+    adding = false::Bool,
+) where {T<:Real}
+    n = length(v1)
+    @assert length(v2) == n
+    @assert length(v) >= n * (n - 1) ÷ 2
+    if c1
+        if c2
+            if adding
+                sltv_c1_c2_real_sum!(v, v1, v2)
+            else
+                sltv_c1_c2_real!(v, v1, v2)
+            end
+        else
+            if adding
+                sltv_c1_real_sum!(v, v1, v2)
+            else
+                sltv_c1_real!(v, v1, v2)
+            end
+        end
+    else
+        if c2
+            if adding
+                sltv_c2_real_sum!(v, v1, v2)
+            else
+                sltv_c2_real!(v, v1, v2)
+            end
+        else
+            if adding
+                sltv_real_sum!(v, v1, v2)
+            else
+                sltv_real!(v, v1, v2)
             end
         end
     end
