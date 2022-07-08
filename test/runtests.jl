@@ -150,7 +150,14 @@ using Random
         end
     end
 
-    function test_strictly_lower_triang_to_vector_rank1(n, c1, c2, adding, makereal)
+    function test_strictly_lower_triang_to_vector_rank1(
+        n,
+        c1,
+        c2,
+        adding,
+        subtracting,
+        makereal,
+    )
         vl = n * (n - 1) ÷ 2
         v = makereal ? rand(Float64, vl) : rand(ComplexF64, vl)
         vc = deepcopy(v)
@@ -159,17 +166,40 @@ using Random
         v1c = c1 ? conj.(v1) : v1
         v2c = c2 ? conj.(v2) : v2
         V = v1c * transpose(v2c)
-        strictly_lower_triang_to_vector!(v, v1, v2; c1, c2, adding)
-        vt = strictly_lower_triang_to_vector(V)
-        if makereal
-            vt = real(vt)
+        if adding && subtracting
+            @test_throws AssertionError("Adding and subtracting cannot be both true.") strictly_lower_triang_to_vector!(
+                v,
+                v1,
+                v2;
+                c1,
+                c2,
+                adding,
+                subtracting,
+            )
+        else
+            strictly_lower_triang_to_vector!(v, v1, v2; c1, c2, adding, subtracting)
+            vt = strictly_lower_triang_to_vector(V)
+            if makereal
+                vt = real(vt)
+            end
+            if adding
+                vt .+= vc
+            end
+            if subtracting
+                vt .= vc .- vt
+            end
+            @test vt ≈ v
+            b_alloc = @allocated strictly_lower_triang_to_vector!(
+                v,
+                v1,
+                v2;
+                c1,
+                c2,
+                adding,
+                subtracting,
+            )
+            @test b_alloc == 0
         end
-        if adding
-            vt .+= vc
-        end
-        @test vt ≈ v
-        b_alloc = @allocated strictly_lower_triang_to_vector!(v, v1, v2; c1, c2, adding)
-        @test b_alloc == 0
     end
 
     @testset "Test strictly_lower_triang_to_vector, Rank1" begin
@@ -177,14 +207,17 @@ using Random
             for c1 in [true, false]
                 for c2 in [true, false]
                     for adding in [true, false]
-                        for makereal in [true, false]
-                            test_strictly_lower_triang_to_vector_rank1(
-                                n,
-                                c1,
-                                c2,
-                                adding,
-                                makereal,
-                            )
+                        for subtracting in [true, false]
+                            for makereal in [true, false]
+                                test_strictly_lower_triang_to_vector_rank1(
+                                    n,
+                                    c1,
+                                    c2,
+                                    adding,
+                                    subtracting,
+                                    makereal,
+                                )
+                            end
                         end
                     end
                 end

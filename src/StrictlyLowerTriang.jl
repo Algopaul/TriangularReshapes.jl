@@ -90,6 +90,7 @@ for c1 in (true, false)
             realfun = makereal ? real : identity
             sltv_name = Symbol("sltv" * c1name * c2name * realname * "!")
             sltv_name_sum = Symbol("sltv" * c1name * c2name * realname * "_sum!")
+            sltv_name_diff = Symbol("sltv" * c1name * c2name * realname * "_diff!")
             vtype = makereal ? Real : Number
             @eval begin
                 function $sltv_name(
@@ -134,6 +135,27 @@ for c1 in (true, false)
                     end
                     return nothing
                 end
+                function $sltv_name_diff(
+                    v::AbstractVector{T1},
+                    v1::AbstractVector,
+                    v2::AbstractVector,
+                ) where {T1<:$vtype}
+                    n = length(v1)
+                    l = n - 1
+                    st = 1
+                    @inbounds for i = 1:n
+                        v2i = v2[i]
+                        v2i = $c2fun(v2i)
+                        @simd for j = (i+1):n
+                            v1j = $c1fun(v1[j])
+                            v1jv2i = $realfun(v1j * v2i)
+                            v[j - 2 + st] -= v1jv2i
+                        end
+                        st += l - 1
+                        l -= 1
+                    end
+                    return nothing
+                end
             end
         end
     end
@@ -148,6 +170,7 @@ Overwrites the first `n * (n - 1) / 2` elements of v with the values of the stri
 - `v1, v2`: Vectors to form the rank-one-matrix `v1*v2'`
 - `c1, c2`: Booleans to indicate whether the vectors `v1` or `v2` should be conjugated.
 - `adding`: Boolean to indicate whether the output should be added to `v` or if `v` should be overwritten.
+- `subtracting`: Boolean to indicate whether the output should be subtracted from `v` or if `v` should be overwritten. Note that `adding` and `subtracting` cannot be both true.
 """
 function strictly_lower_triang_to_vector!(
     v::AbstractVector,
@@ -156,7 +179,9 @@ function strictly_lower_triang_to_vector!(
     c1 = false::Bool,
     c2 = false::Bool,
     adding = false::Bool,
+    subtracting = false::Bool
 )
+    @assert !(adding && subtracting) "Adding and subtracting cannot be both true."
     n = length(v1)
     @assert length(v2) == n
     @assert length(v) >= n * (n - 1) ÷ 2
@@ -164,12 +189,16 @@ function strictly_lower_triang_to_vector!(
         if c2
             if adding
                 sltv_c1_c2_sum!(v, v1, v2)
+            elseif subtracting
+                sltv_c1_c2_diff!(v, v1, v2)
             else
                 sltv_c1_c2!(v, v1, v2)
             end
         else
             if adding
                 sltv_c1_sum!(v, v1, v2)
+            elseif subtracting
+                sltv_c1_diff!(v, v1, v2)
             else
                 sltv_c1!(v, v1, v2)
             end
@@ -178,12 +207,16 @@ function strictly_lower_triang_to_vector!(
         if c2
             if adding
                 sltv_c2_sum!(v, v1, v2)
+            elseif subtracting
+                sltv_c2_diff!(v, v1, v2)
             else
                 sltv_c2!(v, v1, v2)
             end
         else
             if adding
                 sltv_sum!(v, v1, v2)
+            elseif subtracting
+                sltv_diff!(v, v1, v2)
             else
                 sltv!(v, v1, v2)
             end
@@ -199,7 +232,9 @@ function strictly_lower_triang_to_vector!(
     c1 = false::Bool,
     c2 = false::Bool,
     adding = false::Bool,
+    subtracting = false::Bool,
 ) where {T<:Real}
+    @assert !(adding && subtracting) "Adding and subtracting cannot be both true."
     n = length(v1)
     @assert length(v2) == n
     @assert length(v) >= n * (n - 1) ÷ 2
@@ -207,12 +242,16 @@ function strictly_lower_triang_to_vector!(
         if c2
             if adding
                 sltv_c1_c2_real_sum!(v, v1, v2)
+            elseif subtracting
+                sltv_c1_c2_real_diff!(v, v1, v2)
             else
                 sltv_c1_c2_real!(v, v1, v2)
             end
         else
             if adding
                 sltv_c1_real_sum!(v, v1, v2)
+            elseif subtracting
+                sltv_c1_real_diff!(v, v1, v2)
             else
                 sltv_c1_real!(v, v1, v2)
             end
@@ -221,12 +260,16 @@ function strictly_lower_triang_to_vector!(
         if c2
             if adding
                 sltv_c2_real_sum!(v, v1, v2)
+            elseif subtracting
+                sltv_c2_real_diff!(v, v1, v2)
             else
                 sltv_c2_real!(v, v1, v2)
             end
         else
             if adding
                 sltv_real_sum!(v, v1, v2)
+            elseif subtracting
+                sltv_real_diff!(v, v1, v2)
             else
                 sltv_real!(v, v1, v2)
             end
