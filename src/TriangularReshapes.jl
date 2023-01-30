@@ -16,6 +16,7 @@ function vector_to_lower_triang!(M::AbstractMatrix{T}, v::AbstractVector{T}) whe
     @assert length(v) >= n * (n + 1) / 2
     st = 1
     l = n
+    Base.require_one_based_indexing(M, v)
     @inbounds @simd for i = 1:n
         @turbo warn_check_args = false for j = 0:(n - i)
             M[j + i, i] = v[st + j]
@@ -57,6 +58,7 @@ function lower_triang_to_vector!(v::AbstractVector{T}, M::AbstractMatrix{T}) whe
     @assert length(v) >= n * (n + 1) / 2
     st = 1
     l = n
+    Base.require_one_based_indexing(M, v)
     @inbounds @simd for i = 1:n
         @turbo warn_check_args = false for j = 0:(n - i)
             v[st + j] = M[j + i, i]
@@ -101,6 +103,7 @@ for c1 in (true, false)
                     v1::AbstractVector,
                     v2::AbstractVector,
                 ) where {T1<:$vtype}
+                    Base.require_one_based_indexing(v, v1, v2)
                     n = length(v1)
                     l = n
                     st = 1
@@ -122,6 +125,7 @@ for c1 in (true, false)
                     v1::AbstractVector,
                     v2::AbstractVector,
                 ) where {T1<:$vtype}
+                    Base.require_one_based_indexing(v, v1, v2)
                     n = length(v1)
                     l = n
                     st = 1
